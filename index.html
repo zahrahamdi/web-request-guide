@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>مسیر یک درخواست وب</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-start: #0f0c29;
+      --bg-end: #302b63;
+      --text: #fff;
+      --glass: rgba(255,255,255,0.08);
+      --glass-border: rgba(255,255,255,0.15);
+      --highlight: #7c4dff;
+      --highlight-glow: rgba(124,77,255,0.45);
+      --blue: #42a5f5;
+      --green: #66bb6a;
+      --gold: #ffd54f;
+      --red: #ef5350;
+      --mono: 'Courier New', Courier, monospace;
+    }
+
+    body {
+      font-family: 'Vazirmatn', sans-serif;
+      direction: rtl;
+      background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+      background-attachment: fixed;
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.8;
+      overflow-x: hidden;
+    }
+
+    .tip-banner {
+      text-align: center;
+      padding: 0.65rem 1rem;
+      background: rgba(255,255,255,0.06);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      font-size: 0.82rem;
+      line-height: 1.7;
+      opacity: 0.9;
+    }
+
+    .progress-bar {
+      position: fixed; top: 0; right: 0; left: 0; height: 4px;
+      background: rgba(255,255,255,0.1); z-index: 1000;
+      opacity: 0; transition: opacity 0.4s;
+    }
+    .progress-bar.visible { opacity: 1; }
+    .progress-fill {
+      height: 100%; width: 0;
+      background: linear-gradient(90deg, var(--highlight), #e040fb);
+      transition: width 0.5s ease;
+    }
+
+    .glass {
+      background: var(--glass);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+    }
+
+    /* Hero */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 2rem 1.25rem;
+    }
+    .hero h1 {
+      font-size: clamp(1.7rem, 5vw, 2.8rem);
+      font-weight: 800; margin-bottom: 1rem; line-height: 1.45;
+    }
+    .hero p { font-size: clamp(1rem, 2.5vw, 1.3rem); opacity: 0.85; margin-bottom: 2.5rem; }
+    .btn-start {
+      font-family: inherit; font-size: 1.15rem; font-weight: 600;
+      padding: 1rem 2.5rem; border: none; border-radius: 50px;
+      background: linear-gradient(135deg, var(--highlight), #e040fb);
+      color: #fff; cursor: pointer;
+      box-shadow: 0 4px 25px var(--highlight-glow);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn-start:hover { transform: translateY(-2px); box-shadow: 0 8px 35px var(--highlight-glow); }
+
+    /* Journey */
+    #journey { display: none; padding: 1.5rem 1rem 3rem; max-width: 1200px; margin: 0 auto; }
+    #journey.active { display: block; }
+
+    /* Pipeline */
+    .pipeline {
+      display: flex; align-items: center; justify-content: center;
+      flex-wrap: wrap; gap: 0.2rem; margin-bottom: 1.5rem;
+    }
+    .pipe-step {
+      display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+      opacity: 0.35; transition: opacity 0.4s, transform 0.4s;
+    }
+    .pipe-step.active { opacity: 1; transform: scale(1.08); }
+    .pipe-step.done { opacity: 0.65; }
+    .pipe-dot {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem; font-weight: 600; transition: all 0.4s;
+    }
+    .pipe-step.active .pipe-dot {
+      background: var(--highlight); border-color: #e040fb;
+      box-shadow: 0 0 18px var(--highlight-glow);
+    }
+    .pipe-step.done .pipe-dot { background: rgba(102,187,106,0.3); border-color: var(--green); }
+    .pipe-step.error .pipe-dot { background: rgba(239,83,80,0.3); border-color: var(--red); }
+    .pipe-label { font-size: 0.68rem; white-space: nowrap; }
+    .pipe-arrow {
+      width: 22px; height: 2px; position: relative; overflow: hidden; flex-shrink: 0;
+    }
+    .pipe-arrow::after {
+      content: ''; position: absolute; top: 0; right: -100%; width: 200%; height: 100%;
+      background: repeating-linear-gradient(90deg, rgba(255,255,255,0.25) 0 5px, transparent 5px 10px);
+      animation: dash 0.8s linear infinite;
+    }
+    .pipe-arrow.lit::after {
+      background: repeating-linear-gradient(90deg, var(--highlight) 0 5px, transparent 5px 10px);
+    }
+    @keyframes dash { to { transform: translateX(10px); } }
+
+    /* Two-column layout: left=visual, right=card */
+    .journey-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      direction: ltr;
+      min-height: 420px;
+    }
+    .visual-panel, .info-panel { direction: rtl; }
+
+    .visual-panel {
+      border-radius: 20px;
+      background: rgba(0,0,0,0.25);
+      border: 1px solid rgba(255,255,255,0.08);
+      position: relative;
+      overflow: hidden;
+      min-height: 380px;
+    }
+
+    .info-panel {
+      padding: 1.5rem;
+      display: flex; flex-direction: column;
+      animation: cardIn 0.45s ease;
+    }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .info-panel h3 { font-size: 1.25rem; margin-bottom: 0.75rem; font-weight: 700; }
+    .info-panel p { opacity: 0.9; font-size: 0.95rem; }
+
+    .code-block {
+      background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px; padding: 1rem; margin: 0.75rem 0;
+      font-family: var(--mono); font-size: 0.8rem;
+      direction: ltr; text-align: left; line-height: 1.6; white-space: pre;
+      overflow-x: auto;
+    }
+    .mini-table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; font-size: 0.85rem; }
+    .mini-table th, .mini-table td {
+      padding: 0.5rem 0.65rem; border: 1px solid rgba(255,255,255,0.1); text-align: right;
+    }
+    .mini-table th { background: rgba(255,255,255,0.06); }
+    .s200 { color: var(--green); } .s301 { color: var(--gold); }
+    .s404, .s500 { color: var(--red); }
+
+    /* Visual stage shared */
+    .stage { position: absolute; inset: 0; display: none; }
+    .stage.active { display: block; }
+
+    .node {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+      z-index: 2;
+    }
+    .node-right { right: 8%; }
+    .node-left { left: 8%; }
+    .node-icon {
+      width: 64px; height: 64px; border-radius: 14px;
+      background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center; font-size: 1.8rem;
+    }
+    .node-label { font-size: 0.75rem; opacity: 0.8; }
+
+    .lane {
+      position: absolute; top: 50%; left: 22%; right: 22%;
+      height: 2px; background: rgba(255,255,255,0.08);
+      transform: translateY(-50%);
+    }
+
+    /* Packets */
+    .packet {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      padding: 0.45rem 0.75rem; border-radius: 10px;
+      font-size: 0.72rem; font-weight: 600; white-space: nowrap;
+      z-index: 5; opacity: 0; pointer-events: none;
+    }
+    .packet.show { opacity: 1; }
+
+    /* DNS */
+    .pkt-query {
+      right: 18%; background: rgba(124,77,255,0.35); border: 1px solid var(--highlight);
+      animation: pktToLeft 1.8s ease-in-out forwards;
+    }
+    .pkt-answer {
+      left: 18%; background: rgba(102,187,106,0.35); border: 1px solid var(--green);
+      animation: pktToRight 1.8s ease-in-out 2s forwards;
+    }
+    @keyframes pktToLeft {
+      0% { right: 18%; opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { right: calc(100% - 28%); opacity: 0; }
+    }
+    @keyframes pktToRight {
+      0% { left: 18%; opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { left: calc(100% - 28%); opacity: 0; }
+    }
+
+    /* TCP */
+    .tcp-pkt {
+      padding: 0.4rem 0.7rem; border-radius: 8px; font-size: 0.7rem; font-weight: 600;
+      position: absolute; top: 42%; opacity: 0; z-index: 5;
+    }
+    .tcp-syn {
+      right: 18%; background: rgba(66,165,245,0.4); border: 1px solid var(--blue);
+      animation: synGo 1.2s ease-in-out 0.3s forwards;
+    }
+    .tcp-synack {
+      left: 18%; background: rgba(102,187,106,0.4); border: 1px solid var(--green);
+      animation: synAckGo 1.2s ease-in-out 1.8s forwards;
+    }
+    .tcp-ack {
+      right: 18%; background: rgba(255,213,79,0.4); border: 1px solid var(--gold);
+      animation: synGo 1.2s ease-in-out 3.3s forwards;
+    }
+    @keyframes synGo {
+      0% { right: 18%; opacity: 0; }
+      15% { opacity: 1; }
+      85% { opacity: 1; }
+      100% { right: calc(100% - 30%); opacity: 0; }
+    }
+    @keyframes synAckGo {
+      0% { left: 18%; opacity: 0; }
+      15% { opacity: 1; }
+      85% { opacity: 1; }
+      100% { left: calc(100% - 30%); opacity: 0; }
+    }
+    .tcp-success {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 0.5rem;
+      opacity: 0; animation: fadeUp 0.6s ease 4.6s forwards;
+    }
+    .tcp-success .big { font-size: 3rem; }
+    .tcp-success span { font-size: 1.1rem; font-weight: 700; color: var(--green); }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* TLS */
+    .tls-center {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      display: flex; flex-direction: column; align-items: center; gap: 0.5rem; z-index: 3;
+    }
+    .tls-lock { font-size: 2.5rem; transition: transform 0.5s; }
+    .tls-lock.closed { animation: lockClose 0.5s ease 2.8s forwards; }
+    @keyframes lockClose { to { transform: scale(1.15); } }
+    .tls-key {
+      position: absolute; font-size: 1.4rem; opacity: 0; z-index: 4;
+    }
+    .key-r { right: 22%; top: 38%; animation: keyToLeft 1s ease 0.8s forwards; }
+    .key-l { left: 22%; top: 58%; animation: keyToRight 1s ease 1.6s forwards; }
+    @keyframes keyToLeft {
+      0% { right: 22%; opacity: 0; }
+      20% { opacity: 1; }
+      100% { right: 46%; opacity: 0; }
+    }
+    @keyframes keyToRight {
+      0% { left: 22%; opacity: 0; }
+      20% { opacity: 1; }
+      100% { left: 46%; opacity: 0; }
+    }
+    .tls-data {
+      position: absolute; top: 62%; left: 25%; right: 25%; height: 3px;
+      background: linear-gradient(90deg, transparent, var(--green), transparent);
+      opacity: 0; animation: tlsFlow 1.5s ease 3.5s infinite;
+    }
+    @keyframes tlsFlow {
+      0%, 100% { opacity: 0; transform: scaleX(0.3); }
+      50% { opacity: 1; transform: scaleX(1); }
+    }
+
+    /* HTTP Request */
+    .http-req-pkt {
+      right: 18%; top: 50%; transform: translateY(-50%);
+      background: rgba(124,77,255,0.3); border: 2px solid var(--highlight);
+      border-radius: 12px; padding: 0.5rem; min-width: 50px; min-height: 40px;
+      position: absolute; z-index: 5;
+      animation: httpPktGo 2s ease-in-out 0.3s forwards;
+    }
+    @keyframes httpPktGo {
+      0% { right: 18%; width: 60px; height: 44px; }
+      50% { right: 42%; width: 60px; height: 44px; }
+      70% { right: 42%; width: 180px; height: 100px; }
+      100% { right: calc(100% - 32%); width: 180px; height: 100px; opacity: 0.3; }
+    }
+    .http-req-content {
+      font-family: var(--mono); font-size: 0.55rem; direction: ltr; text-align: left;
+      line-height: 1.4; opacity: 0; white-space: pre;
+      animation: showCode 0.4s ease 1.5s forwards;
+    }
+    @keyframes showCode { to { opacity: 1; } }
+
+    /* HTTP Response */
+    .resp-pkt {
+      left: 18%; top: 50%; transform: translateY(-50%);
+      background: rgba(102,187,106,0.3); border: 2px solid var(--green);
+      border-radius: 12px; position: absolute; z-index: 5;
+      animation: respPktGo 1.8s ease-in-out 0.3s forwards;
+    }
+    @keyframes respPktGo {
+      0% { left: 18%; width: 50px; height: 44px; }
+      60% { left: 42%; width: 50px; height: 44px; }
+      100% { left: calc(100% - 32%); width: 50px; height: 44px; }
+    }
+    .status-show {
+      position: absolute; inset: 0; display: flex; align-items: center;
+      justify-content: center; gap: 1.5rem; flex-wrap: wrap;
+      padding: 1rem;
+    }
+    .status-badge {
+      font-size: 2rem; font-weight: 800; padding: 0.5rem 1rem;
+      border-radius: 14px; opacity: 0; transform: scale(0.5);
+    }
+    .status-badge.s200 {
+      color: var(--green); background: rgba(102,187,106,0.15);
+      animation: popIn 0.5s ease 2.2s forwards;
+    }
+    .status-badge.s404 {
+      color: var(--red); background: rgba(239,83,80,0.15);
+      animation: popIn 0.5s ease 2.8s forwards;
+    }
+    .status-badge.s500 {
+      color: var(--red); background: rgba(239,83,80,0.15);
+      animation: popIn 0.5s ease 3.4s forwards;
+    }
+    @keyframes popIn {
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* Render */
+    .browser-mock {
+      position: absolute; top: 12%; left: 10%; right: 10%; bottom: 28%;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px; overflow: hidden;
+    }
+    .browser-bar {
+      height: 24px; background: rgba(255,255,255,0.08);
+      display: flex; align-items: center; padding: 0 8px; gap: 4px;
+    }
+    .browser-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.2); }
+    .browser-content { padding: 8px; }
+    .render-line {
+      height: 10px; border-radius: 4px; background: rgba(255,255,255,0.12);
+      margin-bottom: 6px; width: 0; transition: width 0.6s ease;
+    }
+    .render-line.l1 { animation: growLine 0.5s ease 0.3s forwards; }
+    .render-line.l2 { animation: growLine 0.5s ease 0.7s forwards; width: 0; }
+    .render-line.l3 { animation: growLine 0.5s ease 1.1s forwards; width: 0; }
+    .render-line.l4 { animation: growLine 0.5s ease 1.5s forwards; width: 0; }
+    @keyframes growLine { to { width: var(--w, 80%); } }
+    .wf-area {
+      position: absolute; bottom: 8%; left: 10%; right: 10%;
+      font-family: var(--mono); font-size: 0.7rem;
+    }
+    .wf-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 4px; }
+    .wf-label { width: 32px; direction: ltr; text-align: left; flex-shrink: 0; }
+    .wf-track { flex: 1; height: 12px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; }
+    .wf-fill { height: 100%; width: 0; border-radius: 3px; transition: width 1s ease 1.8s; }
+    .wf-fill.html { background: #7c4dff; }
+    .wf-fill.css { background: #42a5f5; transition-delay: 2s; }
+    .wf-fill.js { background: #ffd54f; transition-delay: 2.2s; }
+    .wf-fill.img { background: #66bb6a; transition-delay: 2.4s; }
+
+    /* Debug */
+    .debug-wall {
+      position: absolute; top: 20%; bottom: 20%; left: 50%; width: 4px;
+      background: repeating-linear-gradient(180deg, var(--red) 0 8px, transparent 8px 16px);
+      transform: translateX(-50%); opacity: 0.6;
+    }
+    .debug-pkt {
+      position: absolute; top: 35%; padding: 0.35rem 0.6rem;
+      border-radius: 8px; font-size: 0.65rem; font-weight: 600;
+      background: rgba(239,83,80,0.3); border: 1px solid var(--red);
+      animation: hitWall 2s ease-in-out infinite;
+    }
+    .debug-pkt.d1 { right: 15%; animation-delay: 0s; }
+    .debug-pkt.d2 { right: 15%; top: 55%; animation-delay: 0.7s; }
+    .debug-pkt.d3 { right: 15%; top: 75%; animation-delay: 1.4s; }
+    @keyframes hitWall {
+      0% { right: 15%; opacity: 1; }
+      45% { right: 48%; opacity: 1; }
+      50% { right: 48%; transform: scale(1.2); background: rgba(239,83,80,0.7); }
+      55% { right: 48%; }
+      100% { right: 15%; opacity: 0.5; }
+    }
+    .debug-flash {
+      position: absolute; inset: 0; pointer-events: none;
+      animation: redFlash 2s ease-in-out infinite;
+    }
+    @keyframes redFlash {
+      0%, 40%, 100% { background: transparent; }
+      48%, 52% { background: rgba(239,83,80,0.12); }
+    }
+    .debug-errors {
+      position: absolute; bottom: 8%; left: 8%; right: 8%;
+      display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center;
+    }
+    .err-tag {
+      font-size: 0.62rem; padding: 0.25rem 0.5rem; border-radius: 6px;
+      background: rgba(239,83,80,0.2); border: 1px solid rgba(239,83,80,0.4);
+      animation: errBlink 2s ease infinite;
+    }
+    .err-tag:nth-child(2) { animation-delay: 0.4s; }
+    .err-tag:nth-child(3) { animation-delay: 0.8s; }
+    .err-tag:nth-child(4) { animation-delay: 1.2s; }
+    .err-tag:nth-child(5) { animation-delay: 1.6s; }
+    @keyframes errBlink {
+      0%, 70%, 100% { opacity: 0.5; }
+      80% { opacity: 1; background: rgba(239,83,80,0.45); }
+    }
+
+    /* Nav */
+    .nav-row {
+      display: flex; justify-content: center; align-items: center;
+      gap: 0.75rem; flex-wrap: wrap; margin-top: 1.5rem;
+    }
+    .btn-nav {
+      font-family: inherit; padding: 0.65rem 1.5rem; border-radius: 50px;
+      border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08);
+      color: #fff; cursor: pointer; font-size: 0.9rem; transition: background 0.2s;
+    }
+    .btn-nav:hover { background: rgba(255,255,255,0.15); }
+    .btn-nav:disabled { opacity: 0.3; cursor: not-allowed; }
+    .btn-next { background: linear-gradient(135deg, var(--highlight), #e040fb); border: none; }
+
+    @media (max-width: 768px) {
+      .journey-body { grid-template-columns: 1fr; direction: rtl; }
+      .visual-panel { min-height: 300px; }
+      .node-icon { width: 50px; height: 50px; font-size: 1.4rem; }
+      .pipe-dot { width: 34px; height: 34px; font-size: 0.55rem; }
+      .pipe-arrow { width: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="tip-banner">
+  💡 این صفحه از Google Fonts استفاده می‌کنه —<br>
+  یعنی مرورگر یه HTTP Request جداگانه به سرور Google میفرسته!<br>
+  DevTools رو باز کن ← Network ← Refresh بزن و ببین!
+</div>
+
+<div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+
+<section class="hero" id="hero">
+  <h1>وقتی یه آدرس تایپ می‌کنی، چه اتفاقی می‌افته؟</h1>
+  <p>یه سفر شگفت‌انگیز در میلی‌ثانیه</p>
+  <button class="btn-start" id="startBtn">شروع سفر ▶</button>
+</section>
+
+<section id="journey">
+  <div class="pipeline" id="pipeline">
+    <div class="pipe-step" data-pipe="0"><div class="pipe-dot">👤</div><span class="pipe-label">شما</span></div>
+    <div class="pipe-arrow"></div>
+    <div class="pipe-step" data-pipe="1"><div class="pipe-dot">DNS</div><span class="pipe-label">DNS</span></div>
+    <div class="pipe-arrow"></div>
+    <div class="pipe-step" data-pipe="2"><div class="pipe-dot">TCP</div><span class="pipe-label">TCP</span></div>
+    <div class="pipe-arrow"></div>
+    <div class="pipe-step" data-pipe="3"><div class="pipe-dot">TLS</div><span class="pipe-label">TLS</span></div>
+    <div class="pipe-arrow"></div>
+    <div class="pipe-step" data-pipe="4"><div class="pipe-dot">HTTP</div><span class="pipe-label">HTTP</span></div>
+    <div class="pipe-arrow"></div>
+    <div class="pipe-step" data-pipe="5"><div class="pipe-dot">🖥️</div><span class="pipe-label">سرور</span></div>
+    <div class="pipe-arrow"></div>
+    <div class="pipe-step" data-pipe="6"><div class="pipe-dot">📄</div><span class="pipe-label">صفحه</span></div>
+  </div>
+
+  <div class="journey-body">
+  <!-- LEFT: Visual -->
+  <div class="visual-panel" id="visualPanel">
+
+    <!-- Step 0: DNS -->
+    <div class="stage active" data-stage="0">
+      <div class="lane"></div>
+      <div class="node node-right"><div class="node-icon">💻</div><span class="node-label">شما</span></div>
+      <div class="node node-left"><div class="node-icon">🌐</div><span class="node-label">سرور DNS</span></div>
+      <div class="packet pkt-query show">google.com</div>
+      <div class="packet pkt-answer show">142.250.185.78</div>
+    </div>
+
+    <!-- Step 1: TCP -->
+    <div class="stage" data-stage="1">
+      <div class="lane"></div>
+      <div class="node node-right"><div class="node-icon">💻</div><span class="node-label">شما</span></div>
+      <div class="node node-left"><div class="node-icon">🖥️</div><span class="node-label">سرور</span></div>
+      <div class="tcp-pkt tcp-syn">SYN — هستی؟</div>
+      <div class="tcp-pkt tcp-synack">SYN-ACK — آره!</div>
+      <div class="tcp-pkt tcp-ack">ACK — باشه!</div>
+      <div class="tcp-success"><div class="big">✅</div><span>کانال باز شد!</span></div>
+    </div>
+
+    <!-- Step 2: TLS -->
+    <div class="stage" data-stage="2">
+      <div class="lane"></div>
+      <div class="node node-right"><div class="node-icon">💻</div><span class="node-label">شما</span></div>
+      <div class="node node-left"><div class="node-icon">🖥️</div><span class="node-label">سرور</span></div>
+      <div class="tls-center">
+        <div class="tls-lock" id="tlsLock">🔓</div>
+      </div>
+      <div class="tls-key key-r">🔑</div>
+      <div class="tls-key key-l">🔑</div>
+      <div class="tls-data"></div>
+    </div>
+
+    <!-- Step 3: HTTP Request -->
+    <div class="stage" data-stage="3">
+      <div class="lane"></div>
+      <div class="node node-right"><div class="node-icon">💻</div><span class="node-label">شما</span></div>
+      <div class="node node-left"><div class="node-icon">🖥️</div><span class="node-label">سرور</span></div>
+      <div class="http-req-pkt">
+        <div class="http-req-content">GET /search HTTP/1.1
+Host: google.com
+Accept: text/html</div>
+      </div>
+    </div>
+
+    <!-- Step 4: HTTP Response -->
+    <div class="stage" data-stage="4">
+      <div class="lane"></div>
+      <div class="node node-right"><div class="node-icon">💻</div><span class="node-label">شما</span></div>
+      <div class="node node-left"><div class="node-icon">🖥️</div><span class="node-label">سرور</span></div>
+      <div class="resp-pkt"></div>
+      <div class="status-show">
+        <div class="status-badge s200">200 ✅</div>
+        <div class="status-badge s404">404 ❌</div>
+        <div class="status-badge s500">500 💥</div>
+      </div>
+    </div>
+
+    <!-- Step 5: Render -->
+    <div class="stage" data-stage="5">
+      <div class="browser-mock">
+        <div class="browser-bar">
+          <div class="browser-dot"></div><div class="browser-dot"></div><div class="browser-dot"></div>
+        </div>
+        <div class="browser-content">
+          <div class="render-line l1" style="--w:90%"></div>
+          <div class="render-line l2" style="--w:70%"></div>
+          <div class="render-line l3" style="--w:85%"></div>
+          <div class="render-line l4" style="--w:50%"></div>
+        </div>
+      </div>
+      <div class="wf-area">
+        <div class="wf-row"><span class="wf-label">HTML</span><div class="wf-track"><div class="wf-fill html" data-w="80"></div></div></div>
+        <div class="wf-row"><span class="wf-label">CSS</span><div class="wf-track"><div class="wf-fill css" data-w="40"></div></div></div>
+        <div class="wf-row"><span class="wf-label">JS</span><div class="wf-track"><div class="wf-fill js" data-w="75"></div></div></div>
+        <div class="wf-row"><span class="wf-label">img</span><div class="wf-track"><div class="wf-fill img" data-w="20"></div></div></div>
+      </div>
+    </div>
+
+    <!-- Step 6: Debug -->
+    <div class="stage" data-stage="6">
+      <div class="debug-wall"></div>
+      <div class="debug-flash"></div>
+      <div class="node node-right"><div class="node-icon">💻</div><span class="node-label">شما</span></div>
+      <div class="debug-pkt d1">DNS?</div>
+      <div class="debug-pkt d2">404</div>
+      <div class="debug-pkt d3">Timeout</div>
+      <div class="debug-errors">
+        <span class="err-tag">DNS_PROBE</span>
+        <span class="err-tag">Connection refused</span>
+        <span class="err-tag">Timeout</span>
+        <span class="err-tag">404</span>
+        <span class="err-tag">CORS</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Info card -->
+  <div class="info-panel glass" id="infoPanel"></div>
+  </div>
+
+  <div class="nav-row">
+    <button class="btn-nav" id="prevBtn">► قبلی</button>
+    <button class="btn-nav btn-next" id="nextBtn">بعدی ◄</button>
+    <button class="btn-nav" id="resetBtn">↺ از اول</button>
+  </div>
+</section>
+
+<script>
+(function () {
+  const STEPS = [
+    {
+      pipe: 1,
+      title: '🔍 دفترچه تلفن اینترنت',
+      html: `<p>شما <strong>google.com</strong> تایپ کردید<br>
+        ولی اینترنت فقط با عدد کار می‌کنه!<br>
+        DNS مثل دفترچه تلفنه:<br>
+        اسم میگیره ← شماره میده<br>
+        <code style="direction:ltr;display:inline-block">google.com = 142.250.185.78</code></p>`
+    },
+    {
+      pipe: 2,
+      title: '🤝 اول دست بده، بعد حرف بزن',
+      html: `<p>مثل زنگ زدن به یه مغازه:<br>
+        شما ──◄ سرور: «هستی؟» (SYN)<br>
+        سرور ──◄ شما: «آره!» (SYN-ACK)<br>
+        شما ──◄ سرور: «باشه!» (ACK)<br>
+        حالا میشه داده فرستاد ✅</p>`
+    },
+    {
+      pipe: 3,
+      title: '🔒 قفل رو ببند!',
+      html: `<p>یه رمز مخفی بین شما و سرور ساخته میشه<br>
+        هر کسی وسط راه گوش بده — چیزی نمی‌فهمه!<br>
+        اون 🔒 کنار آدرس؟ یعنی TLS فعاله<br>
+        HTTP (ناامن 😨) ← پورت پیش‌فرض 80 (ولی همیشه نه!)<br>
+        HTTPS (امن 🔒) ← پورت پیش‌فرض 443 (ولی همیشه نه!)</p>`
+    },
+    {
+      pipe: 4,
+      title: '📨 درخواست فرستادی',
+      html: `<div class="code-block">GET /search HTTP/1.1
+Host: google.com
+Accept: text/html</div>
+        <table class="mini-table"><tr><th>متد</th><th>معنی</th></tr>
+        <tr><td>GET</td><td>خواندن</td></tr>
+        <tr><td>POST</td><td>ساختن</td></tr>
+        <tr><td>PUT</td><td>ویرایش</td></tr>
+        <tr><td>DELETE</td><td>حذف</td></tr></table>`
+    },
+    {
+      pipe: 5,
+      title: '📥 سرور جواب داد',
+      html: `<div class="code-block">HTTP/1.1 200 OK
+Content-Type: text/html</div>
+        <table class="mini-table"><tr><th>کد</th><th>معنی</th></tr>
+        <tr><td class="s200">🟢 200</td><td>موفق</td></tr>
+        <tr><td class="s301">🟡 301</td><td>آدرس عوض شد</td></tr>
+        <tr><td class="s404">🔴 404</td><td>پیدا نشد</td></tr>
+        <tr><td class="s500">🔴 500</td><td>خطای سرور</td></tr></table>`
+    },
+    {
+      pipe: 6,
+      title: '🖥️ صفحه ساخته میشه',
+      html: `<p>مرورگر HTML رو میخونه<br>
+        میفهمه به CSS و JS و عکس هم نیاز داره<br>
+        برای هر کدوم یه درخواست جدید میفرسته<br>
+        به این نمودار زمانی «Waterfall» میگن</p>`
+    },
+    {
+      pipe: -1,
+      title: '🐛 وقتی کار نمی‌کنه',
+      html: `<table class="mini-table">
+        <tr><th>خطا</th><th>معنی</th></tr>
+        <tr><td>DNS_PROBE_FINISHED</td><td>آدرس پیدا نشد</td></tr>
+        <tr><td>Connection refused</td><td>سرور خاموشه</td></tr>
+        <tr><td>Timeout</td><td>سرور جواب نداد</td></tr>
+        <tr><td>404</td><td>مسیر اشتباهه</td></tr>
+        <tr><td>CORS</td><td>دامنه‌ها فرق دارن</td></tr></table>`
+    }
+  ];
+
+  let current = 0;
+
+  const hero = document.getElementById('hero');
+  const journey = document.getElementById('journey');
+  const startBtn = document.getElementById('startBtn');
+  const infoPanel = document.getElementById('infoPanel');
+  const visualPanel = document.getElementById('visualPanel');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const progressBar = document.getElementById('progressBar');
+  const progressFill = document.getElementById('progressFill');
+  const pipeSteps = document.querySelectorAll('.pipe-step');
+  const pipeArrows = document.querySelectorAll('.pipe-arrow');
+
+  function updatePipeline(step) {
+    const pipeIdx = STEPS[step].pipe;
+    pipeSteps.forEach(el => {
+      const i = parseInt(el.dataset.pipe);
+      el.classList.remove('active', 'done', 'error');
+      if (pipeIdx === -1) {
+        el.classList.add('error');
+      } else if (i < pipeIdx) {
+        el.classList.add('done');
+      } else if (i === pipeIdx) {
+        el.classList.add('active');
+      }
+    });
+    pipeArrows.forEach((a, i) => {
+      a.classList.toggle('lit', pipeIdx !== -1 && i < pipeIdx);
+    });
+    progressFill.style.width = ((step) / (STEPS.length - 1) * 100) + '%';
+  }
+
+  function restartAnimations(stageEl) {
+    const clone = stageEl.cloneNode(true);
+    stageEl.parentNode.replaceChild(clone, stageEl);
+    return clone;
+  }
+
+  function triggerStageAnim(step) {
+    const old = document.querySelector(`.stage[data-stage="${step}"]`);
+    if (!old) return;
+    const stage = restartAnimations(old);
+    stage.classList.add('active');
+
+    if (step === 2) {
+      setTimeout(() => {
+        const lock = stage.querySelector('.tls-lock');
+        if (lock) { lock.textContent = '🔒'; lock.classList.add('closed'); }
+      }, 2800);
+    }
+    if (step === 5) {
+      setTimeout(() => {
+        stage.querySelectorAll('.wf-fill').forEach(b => {
+          b.style.width = b.dataset.w + '%';
+        });
+      }, 100);
+    }
+  }
+
+  function showStep(n) {
+    current = n;
+    const data = STEPS[n];
+
+    infoPanel.style.animation = 'none';
+    infoPanel.offsetHeight;
+    infoPanel.style.animation = '';
+    infoPanel.innerHTML = `<h3>${data.title}</h3>${data.html}`;
+
+    visualPanel.querySelectorAll('.stage').forEach(s => s.classList.remove('active'));
+    triggerStageAnim(n);
+
+    updatePipeline(n);
+    prevBtn.disabled = n === 0;
+    nextBtn.textContent = n === STEPS.length - 1 ? 'پایان ✓' : 'بعدی ◄';
+  }
+
+  startBtn.addEventListener('click', () => {
+    hero.style.display = 'none';
+    journey.classList.add('active');
+    progressBar.classList.add('visible');
+    showStep(0);
+    journey.scrollIntoView({ behavior: 'smooth' });
+  });
+
+  prevBtn.addEventListener('click', () => { if (current > 0) showStep(current - 1); });
+  nextBtn.addEventListener('click', () => {
+    if (current < STEPS.length - 1) showStep(current + 1);
+  });
+  resetBtn.addEventListener('click', () => showStep(0));
+})();
+</script>
+</body>
+</html>
