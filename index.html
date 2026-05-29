@@ -206,28 +206,33 @@
       font-size: 0.72rem; font-weight: 600; white-space: nowrap;
       z-index: 5; opacity: 0; pointer-events: none;
     }
-    .packet.show { opacity: 1; }
 
     /* DNS */
     .pkt-query {
-      right: 18%; background: rgba(124,77,255,0.35); border: 1px solid var(--highlight);
+      right: 18%;
+      opacity: 0;
+      background: rgba(124,77,255,0.35);
+      border: 1px solid var(--highlight);
       animation: pktToLeft 1.8s ease-in-out forwards;
     }
     .pkt-answer {
-      left: 18%; background: rgba(102,187,106,0.35); border: 1px solid var(--green);
-      animation: pktToRight 1.8s ease-in-out 2s forwards;
+      left: 18%;
+      opacity: 0;
+      background: rgba(102,187,106,0.35);
+      border: 1px solid var(--green);
+      animation: pktToRight 1.8s ease-in-out 1.8s forwards;
     }
     @keyframes pktToLeft {
       0% { right: 18%; opacity: 0; }
-      10% { opacity: 1; }
-      90% { opacity: 1; }
-      100% { right: calc(100% - 28%); opacity: 0; }
+      8% { opacity: 1; }
+      92% { opacity: 1; }
+      100% { right: 72%; opacity: 0; }
     }
     @keyframes pktToRight {
       0% { left: 18%; opacity: 0; }
-      10% { opacity: 1; }
-      90% { opacity: 1; }
-      100% { left: calc(100% - 28%); opacity: 0; }
+      8% { opacity: 1; }
+      92% { opacity: 1; }
+      100% { left: 72%; opacity: 0; }
     }
 
     /* TCP */
@@ -519,8 +524,8 @@
       <div class="lane"></div>
       <div class="node node-right"><div class="node-icon">💻</div><span class="node-label">شما</span></div>
       <div class="node node-left"><div class="node-icon">🌐</div><span class="node-label">سرور DNS</span></div>
-      <div class="packet pkt-query show">google.com</div>
-      <div class="packet pkt-answer show">142.250.185.78</div>
+      <div class="packet pkt-query">google.com</div>
+      <div class="packet pkt-answer">142.250.185.78</div>
     </div>
 
     <!-- Step 1: TCP -->
